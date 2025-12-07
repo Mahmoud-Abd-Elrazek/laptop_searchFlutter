@@ -21,11 +21,13 @@ class MyApp extends StatelessWidget {
 
 /* ================= MODEL ================= */
 class Laptop {
+  final String id;
   final String name;
   final String image;
   final double price;
 
   Laptop({
+    required this.id,
     required this.name,
     required this.image,
     required this.price,
@@ -33,6 +35,7 @@ class Laptop {
 
   factory Laptop.fromJson(Map<String, dynamic> json) {
     return Laptop(
+      id: json['id'] ?? "",
       name: json['name'] ?? "Unknown",
       image: json['imageUrl'] ?? "",
       price: (json['price'] ?? 0).toDouble(),
@@ -202,53 +205,86 @@ class LaptopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                laptop.image,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return const Center(child: CircularProgressIndicator());
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(child: Icon(Icons.image_not_supported));
-                },
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LaptopDetailsScreen(laptopId: laptop.id),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Image.network(
+                  laptop.image,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(child: Icon(Icons.image_not_supported));
+                  },
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  laptop.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "\$${laptop.price}",
-                  style: const TextStyle(
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    laptop.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    "\$${laptop.price}",
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/* ================= DETAILS SCREEN ================= */
+class LaptopDetailsScreen extends StatelessWidget {
+  final String laptopId;
+
+  const LaptopDetailsScreen({super.key, required this.laptopId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Laptop Details"),
+        backgroundColor: Colors.blue,
+      ),
+      body: Center(
+        child: Text(
+          "Laptop ID: $laptopId",
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
