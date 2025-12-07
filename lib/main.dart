@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
 }
 
+/* ================= APP ROOT ================= */
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -11,11 +14,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: LaptopListScreen(),
+      home: const LaptopListScreen(),
     );
   }
 }
 
+/* ================= MODEL ================= */
 class Laptop {
   final String name;
   final String image;
@@ -26,8 +30,17 @@ class Laptop {
     required this.image,
     required this.price,
   });
+
+  factory Laptop.fromJson(Map<String, dynamic> json) {
+    return Laptop(
+      name: json['name'] ?? "Unknown",
+      image: json['imageUrl'] ?? "",
+      price: (json['price'] ?? 0).toDouble(),
+    );
+  }
 }
 
+/* ================= SCREEN ================= */
 class LaptopListScreen extends StatefulWidget {
   const LaptopListScreen({super.key});
 
@@ -39,11 +52,12 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
   String searchQuery = "";
   late Future<List<Laptop>> laptopsFuture;
   final TextEditingController searchController = TextEditingController();
+  final String categoryId = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
 
   @override
   void initState() {
     super.initState();
-    laptopsFuture = fetchLaptopsFromApi("");
+    laptopsFuture = fetchLaptopsFromApi("", categoryId: categoryId);
   }
 
   @override
@@ -52,38 +66,31 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
     super.dispose();
   }
 
-  Future<List<Laptop>> fetchLaptopsFromApi(String query) async {
-    await Future.delayed(const Duration(seconds: 1));
+  Future<List<Laptop>> fetchLaptopsFromApi(String query,
+      {required String categoryId}) async {
+    final uri = Uri.parse(
+        'https://laptopapp.runasp.net/api/GetLaptopsByCategoryEndPoint?CategoryId=$categoryId');
+    final response = await http.get(uri);
 
-    List<Laptop> allLaptops = [
-      Laptop(
-        name: "Alienware m15",
-        image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8",
-        price: 3340,
-      ),
-      Laptop(
-        name: "Razer Blade 15",
-        image: "https://images.unsplash.com/photo-1518770660439-4636190af475",
-        price: 2400,
-      ),
-      Laptop(
-        name: "ASUS ROG G14",
-        image: "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2",
-        price: 1990,
-      ),
-      Laptop(
-        name: "MSI Katana 15",
-        image: "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2",
-        price: 1800,
-      ),
-    ];
+    if (response.statusCode != 200) {
+      throw Exception('Failed to fetch laptops');
+    }
 
-    if (query.isEmpty) return allLaptops;
+    final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
+    if (jsonBody['isSuccess'] != true) {
+      throw Exception('API returned an error: ${jsonBody['message']}');
+    }
 
-    return allLaptops
-        .where(
-            (laptop) => laptop.name.toLowerCase().contains(query.toLowerCase()))
-        .toList();
+    final data = jsonBody['data'] as List<dynamic>;
+    List<Laptop> laptops = data.map((item) {
+      final m = item as Map<String, dynamic>;
+      return Laptop.fromJson(m);
+    }).where((laptop) {
+      return query.isEmpty ||
+          laptop.name.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+
+    return laptops;
   }
 
   @override
@@ -106,7 +113,8 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
           onChanged: (value) {
             setState(() {
               searchQuery = value;
-              laptopsFuture = fetchLaptopsFromApi(searchQuery);
+              laptopsFuture =
+                  fetchLaptopsFromApi(searchQuery, categoryId: categoryId);
             });
           },
         ),
@@ -119,7 +127,7 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
               setState(() {
                 searchQuery = "";
                 searchController.clear();
-                laptopsFuture = fetchLaptopsFromApi(searchQuery);
+                laptopsFuture = fetchLaptopsFromApi("", categoryId: categoryId);
               });
             },
           ),
@@ -128,20 +136,17 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ Category Name
-          Padding(
-            padding: const EdgeInsets.all(14),
+          const Padding(
+            padding: EdgeInsets.all(14),
             child: Text(
               "Gaming Laptops",
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
             ),
           ),
-
-          // ✅ Laptop Grid
           Expanded(
             child: FutureBuilder<List<Laptop>>(
               future: laptopsFuture,
@@ -155,19 +160,15 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
                     child: Text(
                       "Oops! Something went wrong.\n${snapshot.error}",
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontSize: 16,
-                      ),
+                      style: const TextStyle(color: Colors.red, fontSize: 16),
                     ),
                   );
                 }
 
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                final laptops = snapshot.data;
+                if (laptops == null || laptops.isEmpty) {
                   return const Center(child: Text("No results found"));
                 }
-
-                final laptops = snapshot.data!;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -194,9 +195,9 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
   }
 }
 
+/* ================= CARD ================= */
 class LaptopCard extends StatelessWidget {
   final Laptop laptop;
-
   const LaptopCard({super.key, required this.laptop});
 
   @override
