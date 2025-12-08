@@ -136,7 +136,10 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
       /// ✅ ADD BUTTON
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.blue,
-        child: const Icon(Icons.add),
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+        ),
         onPressed: () {
           Navigator.push(
             context,
