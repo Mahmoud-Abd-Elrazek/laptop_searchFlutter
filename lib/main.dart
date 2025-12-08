@@ -43,6 +43,20 @@ class Laptop {
   }
 }
 
+class Category {
+  final String id;
+  final String name;
+
+  Category({required this.id, required this.name});
+
+  factory Category.fromJson(Map<String, dynamic> json) {
+    return Category(
+      id: json['id'] ?? "",
+      name: json['name'] ?? "Unknown",
+    );
+  }
+}
+
 /* ================= HOME SCREEN ================= */
 class LaptopListScreen extends StatefulWidget {
   const LaptopListScreen({super.key});
@@ -54,82 +68,57 @@ class LaptopListScreen extends StatefulWidget {
 class _LaptopListScreenState extends State<LaptopListScreen> {
   String searchQuery = "";
   late Future<List<Laptop>> laptopsFuture;
+  late Future<List<Category>> categoriesFuture;
   final TextEditingController searchController = TextEditingController();
-  final String categoryId = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+  String selectedCategoryId = "";
+  String selectedCategoryName = "All";
 
   @override
   void initState() {
     super.initState();
-    laptopsFuture = fetchLaptopsFromApi("", categoryId: categoryId);
+    categoriesFuture = fetchCategories();
+    laptopsFuture = fetchLaptops();
   }
 
-  List<Laptop> mockLaptops = [
-    Laptop(
-      id: "1",
-      name: "ASUS ROG Strix G16",
-      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
-      price: 1450,
-    ),
-    Laptop(
-      id: "2",
-      name: "Lenovo Legion 5",
-      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
-      price: 1320,
-    ),
-    Laptop(
-      id: "3",
-      name: "HP Omen 16",
-      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
-      price: 1500,
-    ),
-    Laptop(
-      id: "4",
-      name: "MSI Katana GF66",
-      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
-      price: 1250,
-    ),
-    Laptop(
-      id: "5",
-      name: "Acer Predator Helios 300",
-      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
-      price: 1600,
-    ),
-  ];
+  /// ✅ Fetch all categories
+  Future<List<Category>> fetchCategories() async {
+    final uri =
+        Uri.parse('https://laptopapp.runasp.net/api/GetAllCategoriesEndPoint');
+    final response = await http.get(uri);
 
-  Future<List<Laptop>> fetchLaptopsFromApi(String query,
-      {required String categoryId}) async {
-    await Future.delayed(const Duration(seconds: 1)); // Fake loading
+    if (response.statusCode != 200)
+      throw Exception('Failed to fetch categories');
 
-    return mockLaptops.where((laptop) {
-      return query.isEmpty ||
-          laptop.name.toLowerCase().contains(query.toLowerCase());
-    }).toList();
+    final List data = jsonDecode(response.body) as List<dynamic>;
+    return data.map((e) => Category.fromJson(e)).toList();
   }
 
-  // Future<List<Laptop>> fetchLaptopsFromApi(String query,
-  //     {required String categoryId}) async {
-  //   final uri = Uri.parse(
-  //       'https://laptopapp.runasp.net/api/GetLaptopsByCategoryEndPoint?CategoryId=$categoryId');
+  /// ✅ Fetch laptops by search and/or category
+  Future<List<Laptop>> fetchLaptops() async {
+    Uri uri;
 
-  //   final response = await http.get(uri);
+    if (selectedCategoryId.isEmpty) {
+      uri = Uri.parse('https://laptopapp.runasp.net/api/GetAllLaptopsEndPoint');
+    } else {
+      uri = Uri.parse(
+          'https://laptopapp.runasp.net/api/GetLaptopsEndPoint?CategoryId=$selectedCategoryId');
+    }
 
-  //   if (response.statusCode != 200) {
-  //     throw Exception('Failed to fetch laptops');
-  //   }
+    final response = await http.get(uri);
+    if (response.statusCode != 200) throw Exception('Failed to fetch laptops');
 
-  //   final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
+    final List data = jsonDecode(response.body) as List<dynamic>;
+    List<Laptop> laptops = data.map((e) => Laptop.fromJson(e)).toList();
 
-  //   final data = jsonBody['data'] as List<dynamic>;
+    if (searchQuery.isNotEmpty) {
+      laptops = laptops
+          .where(
+              (l) => l.name.toLowerCase().contains(searchQuery.toLowerCase()))
+          .toList();
+    }
 
-  //   List<Laptop> laptops = data.map((item) {
-  //     return Laptop.fromJson(item);
-  //   }).where((laptop) {
-  //     return query.isEmpty ||
-  //         laptop.name.toLowerCase().contains(query.toLowerCase());
-  //   }).toList();
-
-  //   return laptops;
-  // }
+    return laptops;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,8 +147,7 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
           onChanged: (value) {
             setState(() {
               searchQuery = value;
-              laptopsFuture =
-                  fetchLaptopsFromApi(searchQuery, categoryId: categoryId);
+              laptopsFuture = fetchLaptops();
             });
           },
         ),
@@ -169,42 +157,117 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
             onPressed: () {
               searchController.clear();
               setState(() {
-                laptopsFuture = fetchLaptopsFromApi("", categoryId: categoryId);
+                searchQuery = "";
+                laptopsFuture = fetchLaptops();
               });
             },
           )
         ],
       ),
 
-      body: FutureBuilder<List<Laptop>>(
-        future: laptopsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Column(
+        children: [
+          /// ✅ Categories Bar
+          FutureBuilder<List<Category>>(
+            future: categoriesFuture,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const SizedBox(
+                    height: 50,
+                    child: Center(child: CircularProgressIndicator()));
+              }
+              final categories = snapshot.data!;
+              return Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                alignment: Alignment.centerLeft,
+                color: Colors.white.withOpacity(0.0),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: categories.length + 1,
+                  itemBuilder: (context, index) {
+                    final isAll = index == 0;
+                    final categoryName =
+                        isAll ? "All" : categories[index - 1].name;
+                    final categoryId = isAll ? "" : categories[index - 1].id;
+                    final isSelected =
+                        categoryId == selectedCategoryId && !isAll ||
+                            (isAll && selectedCategoryId.isEmpty);
 
-          final laptops = snapshot.data;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedCategoryId = categoryId;
+                          selectedCategoryName = categoryName;
+                          laptopsFuture = fetchLaptops();
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.only(right: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.blue
+                              : Colors.grey.shade300.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          categoryName,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
 
-          if (laptops == null || laptops.isEmpty) {
-            return const Center(child: Text("No laptops found"));
-          }
+          const SizedBox(height: 10),
 
-          return Padding(
-            padding: const EdgeInsets.all(14),
-            child: GridView.builder(
-              itemCount: laptops.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                childAspectRatio: 0.75,
-              ),
-              itemBuilder: (_, index) {
-                return LaptopCard(laptop: laptops[index]);
+          /// ✅ Laptops Grid
+          Expanded(
+            child: FutureBuilder<List<Laptop>>(
+              future: laptopsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text("Error: ${snapshot.error}"));
+                }
+
+                final laptops = snapshot.data;
+                if (laptops == null || laptops.isEmpty) {
+                  return const Center(child: Text("No laptops found"));
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: GridView.builder(
+                    itemCount: laptops.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 14,
+                      childAspectRatio: 0.75,
+                    ),
+                    itemBuilder: (_, index) {
+                      return LaptopCard(laptop: laptops[index]);
+                    },
+                  ),
+                );
               },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
