@@ -175,7 +175,7 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
 
       body: Column(
         children: [
-          /// ✅ Categories Bar
+          /// ✅ Categories Bar with Images
           FutureBuilder<List<Category>>(
             future: categoriesFuture,
             builder: (context, snapshot) {
@@ -186,7 +186,7 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
               }
               final categories = snapshot.data!;
               return Container(
-                height: 50,
+                height: 60,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 alignment: Alignment.centerLeft,
                 color: Colors.white.withOpacity(0.0),
@@ -198,6 +198,8 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
                     final categoryName =
                         isAll ? "All" : categories[index - 1].name;
                     final categoryId = isAll ? "" : categories[index - 1].id;
+                    final categoryImage =
+                        isAll ? null : categories[index - 1].imageUrl;
                     final isSelected =
                         categoryId == selectedCategoryId && !isAll ||
                             (isAll && selectedCategoryId.isEmpty);
@@ -212,7 +214,7 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.only(right: 10),
+                        margin: const EdgeInsets.only(right: 10, top: 10),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
@@ -221,12 +223,30 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
                               : Colors.grey.shade300.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(
-                          categoryName,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        child: Row(
+                          children: [
+                            if (categoryImage != null &&
+                                categoryImage.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: Image.network(
+                                  categoryImage,
+                                  width: 24,
+                                  height: 24,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.category, size: 24),
+                                ),
+                              ),
+                            Text(
+                              categoryName,
+                              style: TextStyle(
+                                color:
+                                    isSelected ? Colors.white : Colors.black87,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -310,14 +330,18 @@ class LaptopCard extends StatelessWidget {
                   child: Image.network(
                     laptop.image,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.laptop_mac, size: 50),
                   ),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(10),
                   child: Column(
                     children: [
-                      Text(laptop.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        laptop.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 6),
                       Text(
                         "\$${laptop.price}",
@@ -335,6 +359,8 @@ class LaptopCard extends StatelessWidget {
             top: 8,
             right: 8,
             child: Container(
+              height: 50,
+              width: 50,
               padding: const EdgeInsets.all(6),
               decoration: const BoxDecoration(
                 color: Colors.white,
@@ -350,11 +376,7 @@ class LaptopCard extends StatelessWidget {
               child: IconButton(
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                icon: const Icon(
-                  Icons.edit,
-                  color: Colors.blue,
-                  size: 18,
-                ),
+                icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -409,14 +431,18 @@ class AddLaptopScreen extends StatelessWidget {
         child: Column(
           children: [
             TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: "Name")),
+              controller: nameController,
+              decoration: const InputDecoration(labelText: "Name"),
+            ),
             TextField(
-                controller: imageController,
-                decoration: const InputDecoration(labelText: "Image URL")),
+              controller: imageController,
+              decoration: const InputDecoration(labelText: "Image URL"),
+            ),
             TextField(
-                controller: priceController,
-                decoration: const InputDecoration(labelText: "Price")),
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Price"),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
@@ -451,14 +477,18 @@ class EditLaptopScreen extends StatelessWidget {
         child: Column(
           children: [
             TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: "Name")),
+              controller: nameController,
+              decoration: const InputDecoration(labelText: "Name"),
+            ),
             TextField(
-                controller: imageController,
-                decoration: const InputDecoration(labelText: "Image URL")),
+              controller: imageController,
+              decoration: const InputDecoration(labelText: "Image URL"),
+            ),
             TextField(
-                controller: priceController,
-                decoration: const InputDecoration(labelText: "Price")),
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Price"),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
