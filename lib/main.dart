@@ -25,12 +25,14 @@ class Laptop {
   final String name;
   final String image;
   final double price;
+  final String categoryId;
 
   Laptop({
     required this.id,
     required this.name,
     required this.image,
     required this.price,
+    required this.categoryId,
   });
 
   factory Laptop.fromJson(Map<String, dynamic> json) {
@@ -39,6 +41,7 @@ class Laptop {
       name: json['name'] ?? "Unknown",
       image: json['imageUrl'] ?? "",
       price: (json['price'] ?? 0).toDouble(),
+      categoryId: json['categoryId'] ?? "",
     );
   }
 }
@@ -46,13 +49,15 @@ class Laptop {
 class Category {
   final String id;
   final String name;
+  final String imageUrl;
 
-  Category({required this.id, required this.name});
+  Category({required this.id, required this.name, required this.imageUrl});
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
       id: json['id'] ?? "",
       name: json['name'] ?? "Unknown",
+      imageUrl: json['imageUrl'] ?? "",
     );
   }
 }
@@ -89,7 +94,8 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
     if (response.statusCode != 200)
       throw Exception('Failed to fetch categories');
 
-    final List data = jsonDecode(response.body) as List<dynamic>;
+    final Map<String, dynamic> jsonBody = jsonDecode(response.body);
+    final List data = jsonBody['data'] as List<dynamic>;
     return data.map((e) => Category.fromJson(e)).toList();
   }
 
@@ -107,7 +113,9 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
     final response = await http.get(uri);
     if (response.statusCode != 200) throw Exception('Failed to fetch laptops');
 
-    final List data = jsonDecode(response.body) as List<dynamic>;
+    final Map<String, dynamic> jsonBody = jsonDecode(response.body);
+    final List data = jsonBody['data'] as List<dynamic>;
+
     List<Laptop> laptops = data.map((e) => Laptop.fromJson(e)).toList();
 
     if (searchQuery.isNotEmpty) {
