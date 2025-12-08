@@ -12,9 +12,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const LaptopListScreen(),
+      home: LaptopListScreen(),
     );
   }
 }
@@ -43,7 +43,7 @@ class Laptop {
   }
 }
 
-/* ================= SCREEN ================= */
+/* ================= HOME SCREEN ================= */
 class LaptopListScreen extends StatefulWidget {
   const LaptopListScreen({super.key});
 
@@ -63,56 +63,98 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
     laptopsFuture = fetchLaptopsFromApi("", categoryId: categoryId);
   }
 
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
-  }
+  List<Laptop> mockLaptops = [
+    Laptop(
+      id: "1",
+      name: "ASUS ROG Strix G16",
+      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
+      price: 1450,
+    ),
+    Laptop(
+      id: "2",
+      name: "Lenovo Legion 5",
+      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
+      price: 1320,
+    ),
+    Laptop(
+      id: "3",
+      name: "HP Omen 16",
+      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
+      price: 1500,
+    ),
+    Laptop(
+      id: "4",
+      name: "MSI Katana GF66",
+      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
+      price: 1250,
+    ),
+    Laptop(
+      id: "5",
+      name: "Acer Predator Helios 300",
+      image: "https://m.media-amazon.com/images/I/71tHNTGasKL._AC_SL1500_.jpg",
+      price: 1600,
+    ),
+  ];
 
   Future<List<Laptop>> fetchLaptopsFromApi(String query,
       {required String categoryId}) async {
-    final uri = Uri.parse(
-        'https://laptopapp.runasp.net/api/GetLaptopsByCategoryEndPoint?CategoryId=$categoryId');
-    final response = await http.get(uri);
+    await Future.delayed(const Duration(seconds: 1)); // Fake loading
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to fetch laptops');
-    }
-
-    final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
-    if (jsonBody['isSuccess'] != true) {
-      throw Exception('API returned an error: ${jsonBody['message']}');
-    }
-
-    final data = jsonBody['data'] as List<dynamic>;
-    List<Laptop> laptops = data.map((item) {
-      final m = item as Map<String, dynamic>;
-      return Laptop.fromJson(m);
-    }).where((laptop) {
+    return mockLaptops.where((laptop) {
       return query.isEmpty ||
           laptop.name.toLowerCase().contains(query.toLowerCase());
     }).toList();
-
-    return laptops;
   }
+
+  // Future<List<Laptop>> fetchLaptopsFromApi(String query,
+  //     {required String categoryId}) async {
+  //   final uri = Uri.parse(
+  //       'https://laptopapp.runasp.net/api/GetLaptopsByCategoryEndPoint?CategoryId=$categoryId');
+
+  //   final response = await http.get(uri);
+
+  //   if (response.statusCode != 200) {
+  //     throw Exception('Failed to fetch laptops');
+  //   }
+
+  //   final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
+
+  //   final data = jsonBody['data'] as List<dynamic>;
+
+  //   List<Laptop> laptops = data.map((item) {
+  //     return Laptop.fromJson(item);
+  //   }).where((laptop) {
+  //     return query.isEmpty ||
+  //         laptop.name.toLowerCase().contains(query.toLowerCase());
+  //   }).toList();
+
+  //   return laptops;
+  // }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade200,
+
+      /// ✅ ADD BUTTON
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.blue,
+        child: const Icon(Icons.add),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddLaptopScreen()),
+          );
+        },
+      ),
+
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.maybePop(context),
-        ),
         title: TextField(
           controller: searchController,
           decoration: const InputDecoration(
             hintText: "Search laptops...",
             border: InputBorder.none,
-            hintStyle: TextStyle(color: Colors.white70),
           ),
-          style: const TextStyle(color: Colors.white),
           onChanged: (value) {
             setState(() {
               searchQuery = value;
@@ -121,78 +163,48 @@ class _LaptopListScreenState extends State<LaptopListScreen> {
             });
           },
         ),
-        centerTitle: true,
-        backgroundColor: Colors.blue,
         actions: [
           IconButton(
             icon: const Icon(Icons.clear),
             onPressed: () {
+              searchController.clear();
               setState(() {
-                searchQuery = "";
-                searchController.clear();
                 laptopsFuture = fetchLaptopsFromApi("", categoryId: categoryId);
               });
             },
-          ),
+          )
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(14),
-            child: Text(
-              "Gaming Laptops",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+
+      body: FutureBuilder<List<Laptop>>(
+        future: laptopsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final laptops = snapshot.data;
+
+          if (laptops == null || laptops.isEmpty) {
+            return const Center(child: Text("No laptops found"));
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(14),
+            child: GridView.builder(
+              itemCount: laptops.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                childAspectRatio: 0.75,
               ),
-            ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<Laptop>>(
-              future: laptopsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      "Oops! Something went wrong.\n${snapshot.error}",
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red, fontSize: 16),
-                    ),
-                  );
-                }
-
-                final laptops = snapshot.data;
-                if (laptops == null || laptops.isEmpty) {
-                  return const Center(child: Text("No results found"));
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: GridView.builder(
-                    itemCount: laptops.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 0.75,
-                    ),
-                    itemBuilder: (context, index) {
-                      return LaptopCard(laptop: laptops[index]);
-                    },
-                  ),
-                );
+              itemBuilder: (_, index) {
+                return LaptopCard(laptop: laptops[index]);
               },
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -210,64 +222,86 @@ class LaptopCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LaptopDetailsScreen(laptopId: laptop.id),
+            builder: (_) => LaptopDetailsScreen(laptopId: laptop.id),
           ),
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  laptop.image,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(child: Icon(Icons.image_not_supported));
-                  },
-                ),
-              ),
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
             ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    laptop.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Image.network(
+                    laptop.image,
+                    fit: BoxFit.cover,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "\$${laptop.price}",
-                    style: const TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Text(laptop.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      Text(
+                        "\$${laptop.price}",
+                        style: const TextStyle(color: Colors.blue),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          /// EDIT BUTTON
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(
+                  Icons.edit,
+                  color: Colors.blue,
+                  size: 18,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditLaptopScreen(laptop: laptop),
+                    ),
+                  );
+                },
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/* ================= DETAILS SCREEN ================= */
+/* ================= DETAILS ================= */
 class LaptopDetailsScreen extends StatelessWidget {
   final String laptopId;
 
@@ -276,14 +310,92 @@ class LaptopDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Laptop Details"),
-        backgroundColor: Colors.blue,
-      ),
+      appBar: AppBar(title: const Text("Laptop Details")),
       body: Center(
         child: Text(
           "Laptop ID: $laptopId",
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 22),
+        ),
+      ),
+    );
+  }
+}
+
+/* ================= ADD LAPTOP ================= */
+class AddLaptopScreen extends StatelessWidget {
+  const AddLaptopScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final nameController = TextEditingController();
+    final imageController = TextEditingController();
+    final priceController = TextEditingController();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Add Laptop")),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: "Name")),
+            TextField(
+                controller: imageController,
+                decoration: const InputDecoration(labelText: "Image URL")),
+            TextField(
+                controller: priceController,
+                decoration: const InputDecoration(labelText: "Price")),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Add Laptop"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/* ================= EDIT LAPTOP ================= */
+class EditLaptopScreen extends StatelessWidget {
+  final Laptop laptop;
+
+  const EditLaptopScreen({super.key, required this.laptop});
+
+  @override
+  Widget build(BuildContext context) {
+    final nameController = TextEditingController(text: laptop.name);
+    final imageController = TextEditingController(text: laptop.image);
+    final priceController =
+        TextEditingController(text: laptop.price.toString());
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Edit Laptop")),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: "Name")),
+            TextField(
+                controller: imageController,
+                decoration: const InputDecoration(labelText: "Image URL")),
+            TextField(
+                controller: priceController,
+                decoration: const InputDecoration(labelText: "Price")),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Save Changes"),
+            ),
+          ],
         ),
       ),
     );
